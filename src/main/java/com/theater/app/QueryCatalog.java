@@ -109,10 +109,7 @@ public final class QueryCatalog {
         return List.copyOf(splitSqlStatements(setupBlock));
     }
 
-    /**
-     * В файле SQL параметры задаются как :name (удобно вызывать вручную).
-     * Приложение по-прежнему использует позиционные ? в PreparedStatement.
-     */
+
     static String toPositionalPlaceholders(String sql) {
         return sql.replaceAll("(?<!:):([a-zA-Z_][a-zA-Z0-9_]*)", "?");
     }

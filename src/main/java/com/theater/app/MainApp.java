@@ -51,6 +51,8 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 
 public final class MainApp extends Application {
     private static final String DB_HOST = "localhost";
@@ -169,7 +171,7 @@ public final class MainApp extends Application {
         StackPane root = new StackPane(card);
         root.setPadding(new Insets(40));
         root.setStyle("-fx-background-color: linear-gradient(to bottom, #F3F7FF, #EEF2F8);");
-        return new Scene(root, 1200, 820);
+        return new Scene(root, 1400, 900);
     }
 
     private Button buildRoleButton(UserRole role) {
@@ -337,7 +339,7 @@ public final class MainApp extends Application {
         root.setCenter(tabPane);
         root.setBottom(statusLabel);
         root.setStyle("-fx-background-color: #F6F8FC;");
-        return new Scene(root, 1500, 940);
+        return new Scene(root, 1680, 1020);
     }
 
     private Node buildQueryPane() {
@@ -365,7 +367,7 @@ public final class MainApp extends Application {
         );
         left.setPadding(new Insets(14));
         left.setStyle("-fx-background-color: white; -fx-border-color: #D8DFEA; -fx-border-radius: 10; -fx-background-radius: 10;");
-        left.setMinWidth(430);
+        left.setMinWidth(480);
 
         resultCardsBox = new VBox(10);
         resultCardsBox.getChildren().add(createHintLabel("Выберите запрос и нажмите «Выполнить запрос»."));
@@ -383,7 +385,7 @@ public final class MainApp extends Application {
         VBox.setVgrow(resultScroll, Priority.ALWAYS);
 
         SplitPane splitPane = new SplitPane(left, right);
-        splitPane.setDividerPositions(0.34);
+        splitPane.setDividerPositions(0.30);
 
         initQuerySelectors();
         return splitPane;
@@ -401,7 +403,7 @@ public final class MainApp extends Application {
         VBox left = new VBox(10, tableLabel, viewTableComboBox, refreshButton);
         left.setPadding(new Insets(14));
         left.setStyle("-fx-background-color: white; -fx-border-color: #D8DFEA; -fx-border-radius: 10; -fx-background-radius: 10;");
-        left.setMinWidth(360);
+        left.setMinWidth(400);
 
         viewResultCardsBox = new VBox(10);
         viewResultCardsBox.getChildren().add(createHintLabel("Выберите таблицу и нажмите «Показать данные»."));
@@ -419,7 +421,7 @@ public final class MainApp extends Application {
         VBox.setVgrow(resultScroll, Priority.ALWAYS);
 
         SplitPane splitPane = new SplitPane(left, right);
-        splitPane.setDividerPositions(0.28);
+        splitPane.setDividerPositions(0.24);
 
         viewTableComboBox.valueProperty().addListener((obs, oldValue, newValue) -> {
             if (newValue != null) {
@@ -3572,8 +3574,8 @@ public final class MainApp extends Application {
             return;
         }
         Rectangle2D bounds = Screen.getPrimary().getVisualBounds();
-        double width = clamp(primaryStage.getWidth(), 960, bounds.getWidth());
-        double height = clamp(primaryStage.getHeight(), 640, bounds.getHeight());
+        double width = clamp(primaryStage.getWidth(), 1200, bounds.getWidth());
+        double height = clamp(primaryStage.getHeight(), 800, bounds.getHeight());
         primaryStage.setWidth(width);
         primaryStage.setHeight(height);
 
@@ -3984,13 +3986,51 @@ public final class MainApp extends Application {
     }
 
     private void showError(String header, SQLException ex) {
+        String reason = describeReason(ex);
         Alert alert = new Alert(Alert.AlertType.ERROR);
         alert.setTitle("Ошибка");
         alert.setHeaderText(header);
-        alert.setContentText(ex.getMessage());
+        alert.setContentText(reason);
         alert.getDialogPane().setMinHeight(Region.USE_PREF_SIZE);
         alert.showAndWait();
-        setStatus("Ошибка: " + ex.getMessage());
+        setStatus("Ошибка: " + reason);
+    }
+
+    /**
+     * Возвращает только причину ошибки (текст из БД/триггера), без указания того,
+     * где и как именно она возникла в коде: без CONTEXT/«Где:», номеров строк
+     * PL/pgSQL-функций и служебных деталей драйвера.
+     */
+    private String describeReason(SQLException ex) {
+        for (Throwable current = ex; current != null; current = current.getCause()) {
+            if (current instanceof PSQLException) {
+                ServerErrorMessage server = ((PSQLException) current).getServerErrorMessage();
+                if (server != null && server.getMessage() != null) {
+                    StringBuilder sb = new StringBuilder(server.getMessage().trim());
+                    if (server.getDetail() != null && !server.getDetail().isBlank()) {
+                        sb.append('\n').append(server.getDetail().trim());
+                    }
+                    if (server.getHint() != null && !server.getHint().isBlank()) {
+                        sb.append('\n').append(server.getHint().trim());
+                    }
+                    return sb.toString();
+                }
+            }
+        }
+        return stripErrorContext(ex.getMessage());
+    }
+
+    /**
+     * Запасной вариант, когда серверное сообщение недоступно: убирает префикс
+     * «ОШИБКА:/ERROR:» и отбрасывает строки контекста («Где:/Where:», «Подробности
+     * расположения», и т.п.), оставляя только первую строку — саму причину.
+     */
+    private String stripErrorContext(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "Неизвестная ошибка.";
+        }
+        String firstLine = raw.lines().findFirst().orElse(raw).trim();
+        return firstLine.replaceFirst("(?i)^(ошибка|error)\\s*:\\s*", "");
     }
 
     private void showWarning(String message) {

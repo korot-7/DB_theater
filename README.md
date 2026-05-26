@@ -23,7 +23,7 @@
 
 ## Подготовка базы данных
 
-1. Запустите PostgreSQL. Проще всего через Docker из каталога `app`:
+1. Запустите PostgreSQL. Проще всего через Docker:
 
    ```bash
    docker compose up -d
@@ -41,7 +41,6 @@
 ## Запуск приложения
 
 ```bash
-cd app
 mvn clean javafx:run
 ```
 
@@ -66,7 +65,6 @@ mvn clean compile
 ## Структура проекта
 
 ```
-app/
-  src/main/java/com/theater/app/   — код JavaFX-приложения
-  src/main/resources/sql/          — SQL для приложения (схема, данные, запросы)                            — исходные SQL-скрипты репозитория
+src/main/java/com/theater/app/   — код JavaFX-приложения
+src/main/resources/sql/          — SQL для приложения (схема, данные, запросы)
 ```
