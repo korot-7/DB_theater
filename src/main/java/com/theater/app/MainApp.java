@@ -3996,11 +3996,6 @@ public final class MainApp extends Application {
         setStatus("Ошибка: " + reason);
     }
 
-    /**
-     * Возвращает только причину ошибки (текст из БД/триггера), без указания того,
-     * где и как именно она возникла в коде: без CONTEXT/«Где:», номеров строк
-     * PL/pgSQL-функций и служебных деталей драйвера.
-     */
     private String describeReason(SQLException ex) {
         for (Throwable current = ex; current != null; current = current.getCause()) {
             if (current instanceof PSQLException) {
@@ -4020,11 +4015,6 @@ public final class MainApp extends Application {
         return stripErrorContext(ex.getMessage());
     }
 
-    /**
-     * Запасной вариант, когда серверное сообщение недоступно: убирает префикс
-     * «ОШИБКА:/ERROR:» и отбрасывает строки контекста («Где:/Where:», «Подробности
-     * расположения», и т.п.), оставляя только первую строку — саму причину.
-     */
     private String stripErrorContext(String raw) {
         if (raw == null || raw.isBlank()) {
             return "Неизвестная ошибка.";
